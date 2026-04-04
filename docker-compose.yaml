@@ -1,0 +1,13 @@
+services:
+  suno-api:
+    image: gcuiart/suno-api:latest
+    container_name: suno-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - SUNO_COOKIE=<сюда вставить содержимое Cookie в Suno.txt>
+      - TWOCAPTCHA_KEY=<ваш ключ 2captcha>
+      - BROWSER=chromium
+      - BROWSER_HEADLESS=true
+      - BROWSER_LOCALE=ru   # или en
