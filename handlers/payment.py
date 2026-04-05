@@ -6,7 +6,7 @@ from config import PROVIDER_TOKEN
 
 router = Router()
 
-# Клавиатура с товарами
+# --- Клавиатура с товарами ---
 def get_products_keyboard():
     buttons = [
         [InlineKeyboardButton(text="🎵 1 генерация (50 ₽)", callback_data="buy_50")],
@@ -16,9 +16,9 @@ def get_products_keyboard():
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-# Команда /catalog
-@router.message(Command("catalog"))
-async def show_catalog(message: types.Message):
+# --- Команда /pay (теперь будет работать!) ---
+@router.message(Command("pay"))
+async def cmd_pay(message: types.Message):
     await message.answer(
         "🛍 *Добро пожаловать в магазин Нейромузыки!*\n\n"
         "Выберите количество генераций, чтобы создать уникальные треки с помощью ИИ.\n\n"
@@ -30,7 +30,12 @@ async def show_catalog(message: types.Message):
         parse_mode="Markdown"
     )
 
-# Обработчик нажатия на кнопки товаров
+# --- Команда /catalog (оставляем для удобства) ---
+@router.message(Command("catalog"))
+async def show_catalog(message: types.Message):
+    await cmd_pay(message)  # Просто вызываем ту же логику, что и для /pay
+
+# --- Обработчик нажатия на кнопки товаров ---
 @router.callback_query(lambda c: c.data and c.data.startswith("buy_"))
 async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
     price_map = {
@@ -57,12 +62,12 @@ async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
     )
     await callback.answer()
 
-# Обязательный обработчик предварительной проверки
+# --- Обязательный обработчик предварительной проверки ---
 @router.pre_checkout_query()
 async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: Bot):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
-# Обработчик успешного платежа
+# --- Обработчик успешного платежа ---
 @router.message(F.successful_payment)
 async def process_successful_payment(message: Message):
     total_amount = message.successful_payment.total_amount // 100
@@ -70,4 +75,4 @@ async def process_successful_payment(message: Message):
         f"✅ Оплата на сумму {total_amount} ₽ успешно прошла!\n"
         f"Генерации скоро появятся на вашем балансе. Спасибо за покупку!"
     )
-    # Здесь вызывайте вашу функцию начисления баланса
+    # Здесь будет логика начисления генераций на баланс пользователя
