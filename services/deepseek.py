@@ -1,47 +1,41 @@
+import aiohttp
 import logging
-from openseek import DeepSeek
 
 logger = logging.getLogger(__name__)
 
-_deepseek_client = None
-
-async def get_deepseek_client():
-    global _deepseek_client
-    if _deepseek_client is None:
-        from config import DEEPSEEK_EMAIL, DEEPSEEK_PASSWORD
-        if not DEEPSEEK_EMAIL or not DEEPSEEK_PASSWORD:
-            logger.error("DEEPSEEK_EMAIL и DEEPSEEK_PASSWORD не заданы!")
-            raise Exception("DEEPSEEK_EMAIL и DEEPSEEK_PASSWORD не заданы в переменных окружения!")
-        logger.info("Инициализация DeepSeek клиента...")
-        try:
-            _deepseek_client = DeepSeek(
-                email=DEEPSEEK_EMAIL,
-                password=DEEPSEEK_PASSWORD,
-                headless=True
-            )
-            await _deepseek_client.initialize()
-            logger.info("DeepSeek клиент успешно инициализирован.")
-        except Exception as e:
-            logger.exception("Ошибка при инициализации DeepSeek клиента")
-            raise
-    return _deepseek_client
+# Ваш токен DeepSeek (полученный из браузера)
+DEEPSEEK_TOKEN = "w2SP85s/2KqbClBMCRncN25eootbMpy/XakRDkvNw5/qj9kjWJSNZ0VOPFgFN90G"
 
 async def get_lyrics(messages_history: list) -> str:
-    logger.info("get_lyrics вызван")
-    client = await get_deepseek_client()
-    # Ищем последнее сообщение пользователя
+    """
+    Отправляет историю сообщений в DeepSeek и возвращает текст ответа.
+    """
+    # Извлекаем последнее сообщение пользователя
     last_user_msg = None
     for msg in reversed(messages_history):
         if msg.get("role") == "user":
             last_user_msg = msg.get("content")
             break
+
     if not last_user_msg:
         raise Exception("Не найдено сообщение пользователя в истории")
-    logger.info(f"Отправка запроса в DeepSeek: {last_user_msg[:50]}...")
-    try:
-        response = await client.send_message(last_user_msg)
-        logger.info("Получен ответ от DeepSeek")
-        return response.text
-    except Exception as e:
-        logger.exception("Ошибка при вызове DeepSeek API")
-        raise
+
+    url = "https://chat.deepseek.com/api/v0/chat/completion"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {DEEPSEEK_TOKEN}"
+    }
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [{"role": "user", "content": last_user_msg}],
+        "stream": False
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            if resp.status != 200:
+                text = await resp.text()
+                logger.error(f"DeepSeek API error: {resp.status} - {text}")
+                raise Exception(f"DeepSeek API error: {resp.status}")
+            data = await resp.json()
+            return data["choices"][0]["message"]["content"]
