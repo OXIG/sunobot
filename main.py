@@ -23,7 +23,6 @@ dp.include_router(admin.router)
 # Запуск бота
 async def main():
     await init_db()
-    # Запускаем поллинг бота
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
