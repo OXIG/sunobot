@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN = "8528392465:AAElzPjzrbyK559gpuT1DNfGKJKnkSwnRiw"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")   # не используется, но пусть будет
 SUNO_API_URL = os.getenv("SUNO_API_URL", "http://localhost:3000")
 PROVIDER_TOKEN = os.getenv("PROVIDER_TOKEN")
