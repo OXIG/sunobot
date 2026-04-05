@@ -20,7 +20,7 @@ def get_products_keyboard():
 @router.message(Command("pay"))
 async def cmd_pay(message: types.Message):
     await message.answer(
-        "🛍 *Добро пожаловать в магазин Нейромузыки!*\n\n"
+        "🛍 *Добро пожаловать в Suno Bot!*\n\n"
         "Выберите количество генераций, чтобы создать уникальные треки с помощью ИИ.\n\n"
         "🎵 *1 генерация* — 50 ₽\n"
         "🎶 *3 генерации* — 150 ₽\n"
