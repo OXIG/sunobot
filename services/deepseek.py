@@ -1,35 +1,41 @@
 import aiohttp
 import logging
+from config import DEEPSEEK_API_URL
 
 logger = logging.getLogger(__name__)
 
-DEEPSEEK_TOKEN = "w2SP85s/2KqbClBMCRncN25eootbMpy/XakRDkvNw5/qj9kjWJSNZ0VOPFgFN90G"
-
 async def get_lyrics(messages_history: list) -> str:
+    """
+    Отправляет запрос к вашему deepseek-free-api на Railway.
+    """
+    # Извлекаем последнее сообщение пользователя
     last_user_msg = None
     for msg in reversed(messages_history):
         if msg.get("role") == "user":
             last_user_msg = msg.get("content")
             break
+
     if not last_user_msg:
         raise Exception("Не найдено сообщение пользователя в истории")
 
-    # Пробуем другой эндпоинт (официальный API)
-    url = "https://api.deepseek.com/v1/chat/completions"
+    # Формируем URL для запроса к deepseek-free-api (совместим с OpenAI API)
+    base_url = DEEPSEEK_API_URL.rstrip('/')
+    url = f"{base_url}/v1/chat/completions"
+
     headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {DEEPSEEK_TOKEN}"
+        "Content-Type": "application/json"
     }
     payload = {
         "model": "deepseek-chat",
         "messages": [{"role": "user", "content": last_user_msg}],
-        "stream": False
+        "temperature": 0.7,
+        "max_tokens": 1000
     }
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=payload) as resp:
-            text = await resp.text()
             if resp.status != 200:
+                text = await resp.text()
                 logger.error(f"DeepSeek API error: {resp.status} - {text}")
                 raise Exception(f"DeepSeek API error: {resp.status} - {text}")
             data = await resp.json()
