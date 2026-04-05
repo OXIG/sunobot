@@ -12,6 +12,8 @@ from services.global_counter import can_generate, use_generation
 from config import SUNO_API_URL
 import logging
 
+logger = logging.getLogger(__name__)
+
 router = Router()
 suno = SunoClient(SUNO_API_URL)
 
@@ -46,11 +48,13 @@ async def start_generation(message: types.Message, state: FSMContext):
         return
     await message.answer("✍️ О чём будет ваша песня? Напишите тему, идею, настроение.")
     await state.set_state(SongCreation.waiting_for_theme)
-    await add_to_history(state, "user", f"Пользователь хочет песню. Тема: {message.text}")
+    # Не добавляем в историю сообщение пользователя, так как его ещё нет
 
 @router.message(SongCreation.waiting_for_theme)
 async def theme_received(message: types.Message, state: FSMContext):
+    # Сохраняем тему
     await add_to_history(state, "user", f"Тема: {message.text}")
+    # Вызываем DeepSeek для генерации ответа (он задаст уточняющие вопросы)
     response = await call_deepseek(state)
     await add_to_history(state, "assistant", response)
     await message.answer(response)
@@ -74,6 +78,7 @@ async def vocal_received(message: types.Message, state: FSMContext):
     response = await call_deepseek(state)
     await add_to_history(state, "assistant", response)
     await message.answer(response)
+    # После этого DeepSeek должен выдать текст песни. Показываем кнопку подтверждения.
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Сгенерировать песню", callback_data="confirm_generate")]
     ])
@@ -96,6 +101,7 @@ async def confirm_generation(callback: types.CallbackQuery, state: FSMContext):
 
     await callback.message.answer("🎵 Генерация началась, обычно это занимает не более 5 минут...")
 
+    # Получаем последний текст от DeepSeek (последнее сообщение ассистента)
     messages = await get_deepseek_messages(state)
     lyrics = None
     for msg in reversed(messages):
