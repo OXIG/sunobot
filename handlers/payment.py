@@ -1,13 +1,14 @@
+import logging
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message
 from aiogram import Bot
 from config import PROVIDER_TOKEN
-import logging
+
 logger = logging.getLogger(__name__)
+
 router = Router()
 
-# --- Клавиатура с товарами ---
 def get_products_keyboard():
     buttons = [
         [InlineKeyboardButton(text="🎵 1 генерация (50 ₽)", callback_data="buy_50")],
@@ -17,7 +18,6 @@ def get_products_keyboard():
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-# --- Команда /pay (теперь будет работать!) ---
 @router.message(Command("pay"))
 async def cmd_pay(message: types.Message):
     await message.answer(
@@ -31,14 +31,20 @@ async def cmd_pay(message: types.Message):
         parse_mode="Markdown"
     )
 
-# --- Команда /catalog (оставляем для удобства) ---
 @router.message(Command("catalog"))
 async def show_catalog(message: types.Message):
-    await cmd_pay(message)  # Просто вызываем ту же логику, что и для /pay
+    await cmd_pay(message)
 
-# --- Обработчик нажатия на кнопки товаров ---
 @router.callback_query(lambda c: c.data and c.data.startswith("buy_"))
 async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
+    logger.info(f"Получен callback: {callback.data}")
+    
+    if not PROVIDER_TOKEN:
+        logger.error("PROVIDER_TOKEN не задан в переменных окружения!")
+        await callback.message.answer("❌ Ошибка: платежный токен не настроен. Сообщите администратору.")
+        await callback.answer()
+        return
+
     price_map = {
         "buy_50": (5000, "1 генерация музыки"),
         "buy_150": (15000, "3 генерации музыки"),
@@ -48,27 +54,30 @@ async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
     price_in_kopecks, description = price_map[callback.data]
     prices = [LabeledPrice(label="Пополнение баланса", amount=price_in_kopecks)]
 
-    await bot.send_invoice(
-        chat_id=callback.from_user.id,
-        title="Пополнение баланса",
-        description=description,
-        payload=f"balance_{callback.data}",
-        provider_token=PROVIDER_TOKEN,
-        currency="RUB",
-        prices=prices,
-        need_phone_number=True,
-        need_email=True,
-        send_phone_number_to_provider=True,
-        send_email_to_provider=True,
-    )
+    try:
+        await bot.send_invoice(
+            chat_id=callback.from_user.id,
+            title="Пополнение баланса",
+            description=description,
+            payload=f"balance_{callback.data}",
+            provider_token=PROVIDER_TOKEN,
+            currency="RUB",
+            prices=prices,
+            need_phone_number=True,
+            need_email=True,
+            send_phone_number_to_provider=True,
+            send_email_to_provider=True,
+        )
+    except Exception as e:
+        logger.exception("Ошибка при отправке инвойса")
+        await callback.message.answer(f"❌ Ошибка при создании счета: {str(e)}")
+    
     await callback.answer()
 
-# --- Обязательный обработчик предварительной проверки ---
 @router.pre_checkout_query()
 async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: Bot):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
-# --- Обработчик успешного платежа ---
 @router.message(F.successful_payment)
 async def process_successful_payment(message: Message):
     total_amount = message.successful_payment.total_amount // 100
@@ -76,4 +85,4 @@ async def process_successful_payment(message: Message):
         f"✅ Оплата на сумму {total_amount} ₽ успешно прошла!\n"
         f"Генерации скоро появятся на вашем балансе. Спасибо за покупку!"
     )
-    # Здесь будет логика начисления генераций на баланс пользователя
+    # Здесь добавите логику начисления баланса
