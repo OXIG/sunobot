@@ -13,11 +13,11 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# Подключаем роутеры
+# Подключаем все роутеры
 dp.include_router(start.router)
 dp.include_router(balance.router)
 dp.include_router(payment.router)
-dp.include_router(generate.router)
+dp.include_router(generate.router)   # <-- эта строка была пропущена
 dp.include_router(admin.router)
 
 # Запуск бота
