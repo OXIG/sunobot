@@ -11,10 +11,10 @@ router = Router()
 
 def get_products_keyboard():
     buttons = [
-        [InlineKeyboardButton(text="🎵 1 генерация (50 ₽)", callback_data="buy_50")],
-        [InlineKeyboardButton(text="🎶 3 генерации (150 ₽)", callback_data="buy_150")],
-        [InlineKeyboardButton(text="🎤 5 генераций (250 ₽)", callback_data="buy_250")],
-        [InlineKeyboardButton(text="🎧 10 генераций (500 ₽)", callback_data="buy_500")],
+        [InlineKeyboardButton(text="🎵 1 генерация (80 ₽)", callback_data="buy_80")],
+        [InlineKeyboardButton(text="🎶 3 генерации (240 ₽)", callback_data="buy_240")],
+        [InlineKeyboardButton(text="🎤 5 генераций (400 ₽)", callback_data="buy_400")],
+        [InlineKeyboardButton(text="🎧 10 генераций (800 ₽)", callback_data="buy_800")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -23,10 +23,10 @@ async def cmd_pay(message: types.Message):
     await message.answer(
         "🛍 *Добро пожаловать в Suno Bot!*\n\n"
         "Выберите количество генераций, чтобы создать уникальные треки с помощью ИИ.\n\n"
-        "🎵 *1 генерация* — 50 ₽\n"
-        "🎶 *3 генерации* — 150 ₽\n"
-        "🎤 *5 генераций* — 250 ₽\n"
-        "🎧 *10 генераций* — 500 ₽",
+        "🎵 *1 генерация* — 80 ₽\n"
+        "🎶 *3 генерации* — 240 ₽\n"
+        "🎤 *5 генераций* — 400 ₽\n"
+        "🎧 *10 генераций* — 800 ₽",
         reply_markup=get_products_keyboard(),
         parse_mode="Markdown"
     )
@@ -45,11 +45,12 @@ async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
         await callback.answer()
         return
 
+    # Цены в копейках
     price_map = {
-        "buy_50": (5000, "1 генерация музыки"),
-        "buy_150": (15000, "3 генерации музыки"),
-        "buy_250": (25000, "5 генераций музыки"),
-        "buy_500": (50000, "10 генераций музыки"),
+        "buy_80": (8000, "1 генерация музыки"),
+        "buy_240": (24000, "3 генерации музыки"),
+        "buy_400": (40000, "5 генераций музыки"),
+        "buy_800": (80000, "10 генераций музыки"),
     }
     price_in_kopecks, description = price_map[callback.data]
     prices = [LabeledPrice(label="Пополнение баланса", amount=price_in_kopecks)]
@@ -81,8 +82,10 @@ async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: 
 @router.message(F.successful_payment)
 async def process_successful_payment(message: Message):
     total_amount = message.successful_payment.total_amount // 100
+    # Определяем количество генераций по сумме
+    generations = {80: 1, 240: 3, 400: 5, 800: 10}.get(total_amount, 0)
     await message.answer(
         f"✅ Оплата на сумму {total_amount} ₽ успешно прошла!\n"
-        f"Генерации скоро появятся на вашем балансе. Спасибо за покупку!"
+        f"Вам начислено {generations} генераций. Спасибо за покупку!"
     )
-    # Здесь добавите логику начисления баланса
+    # TODO: добавить вызов функции начисления баланса пользователю
