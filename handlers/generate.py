@@ -38,6 +38,7 @@ async def call_deepseek(state: FSMContext) -> str:
 
 @router.message(Command("generate"))
 async def start_generation(message: types.Message, state: FSMContext):
+    logger.info("Команда /generate получена")
     async with async_session_maker() as session:
         balance = await get_user_balance(session, message.from_user.id)
     if balance <= 0:
@@ -48,10 +49,11 @@ async def start_generation(message: types.Message, state: FSMContext):
         return
     await message.answer("✍️ О чём будет ваша песня? Напишите тему, идею, настроение.")
     await state.set_state(SongCreation.waiting_for_theme)
-    # Не добавляем в историю сообщение пользователя, так как его ещё нет
+    logger.info("Состояние установлено: waiting_for_theme")
 
 @router.message(SongCreation.waiting_for_theme)
 async def theme_received(message: types.Message, state: FSMContext):
+    logger.info(f"Получено сообщение в состоянии waiting_for_theme: {message.text}")
     # Сохраняем тему
     await add_to_history(state, "user", f"Тема: {message.text}")
     # Вызываем DeepSeek для генерации ответа (он задаст уточняющие вопросы)
@@ -60,9 +62,11 @@ async def theme_received(message: types.Message, state: FSMContext):
     await message.answer(response)
     await message.answer("🎸 В каком жанре вы хотите песню?")
     await state.set_state(SongCreation.waiting_for_style)
+    logger.info("Состояние изменено на waiting_for_style")
 
 @router.message(SongCreation.waiting_for_style)
 async def style_received(message: types.Message, state: FSMContext):
+    logger.info(f"Получен жанр: {message.text}")
     await add_to_history(state, "user", f"Жанр: {message.text}")
     await state.update_data(style=message.text)
     response = await call_deepseek(state)
@@ -73,6 +77,7 @@ async def style_received(message: types.Message, state: FSMContext):
 
 @router.message(SongCreation.waiting_for_vocal)
 async def vocal_received(message: types.Message, state: FSMContext):
+    logger.info(f"Получен вокал: {message.text}")
     await add_to_history(state, "user", f"Вокал: {message.text}")
     await state.update_data(vocal=message.text)
     response = await call_deepseek(state)
