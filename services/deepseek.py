@@ -4,7 +4,6 @@ from config import DEEPSEEK_API_URL
 
 logger = logging.getLogger(__name__)
 
-# Тот же токен, что и в переменной DEEP_SEEK_CHAT_AUTHORIZATION на Railway
 DEEPSEEK_TOKEN = "w2SP85s/2KqbClBMCRncN25eootbMpy/XakRDkvNw5/qj9kjWJSNZ0VOPFgFN90G"
 
 async def get_lyrics(messages_history: list) -> str:
@@ -23,7 +22,7 @@ async def get_lyrics(messages_history: list) -> str:
     url = f"{base_url}/v1/chat/completions"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {DEEPSEEK_TOKEN}"
+        "Authorization": DEEPSEEK_TOKEN   # <-- изменили
     }
     payload = {
         "model": "deepseek-chat",
