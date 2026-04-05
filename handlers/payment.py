@@ -4,6 +4,8 @@ from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message
 from aiogram import Bot
 from config import PROVIDER_TOKEN
+from database.crud import add_balance, get_or_create_user
+from database.session import async_session_maker
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +47,6 @@ async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
         await callback.answer()
         return
 
-    # Цены в копейках
     price_map = {
         "buy_80": (8000, "1 генерация музыки"),
         "buy_240": (24000, "3 генерации музыки"),
@@ -81,11 +82,28 @@ async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: 
 
 @router.message(F.successful_payment)
 async def process_successful_payment(message: Message):
-    total_amount = message.successful_payment.total_amount // 100
+    total_amount = message.successful_payment.total_amount // 100  # рубли
     # Определяем количество генераций по сумме
-    generations = {80: 1, 240: 3, 400: 5, 800: 10}.get(total_amount, 0)
+    generations_map = {80: 1, 240: 3, 400: 5, 800: 10}
+    generations = generations_map.get(total_amount, 0)
+    if generations == 0:
+        await message.answer("❌ Неизвестная сумма платежа. Свяжитесь с поддержкой.")
+        return
+
+    # Начисляем генерации пользователю
+    async with async_session_maker() as session:
+        user = await get_or_create_user(session, message.from_user.id)
+        await add_balance(session, message.from_user.id, generations)
+        new_balance = await get_user_balance(session, message.from_user.id)  # нужно импортировать get_user_balance, или можно просто вернуть сообщение
+
+    # Импортируем get_user_balance, чтобы показать новый баланс (либо оставим без показа)
+    from database.crud import get_user_balance
+    async with async_session_maker() as session:
+        new_balance = await get_user_balance(session, message.from_user.id)
+
     await message.answer(
         f"✅ Оплата на сумму {total_amount} ₽ успешно прошла!\n"
-        f"Вам начислено {generations} генераций. Спасибо за покупку!"
+        f"Вам начислено {generations} генераций.\n"
+        f"💰 Ваш баланс: {new_balance} генераций.\n"
+        f"Спасибо за покупку!"
     )
-    # TODO: добавить вызов функции начисления баланса пользователю
