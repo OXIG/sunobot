@@ -3,13 +3,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")   # больше не нужен, но пусть будет
+BOT_TOKEN = "8528392465:AAElzPjzrbyK559gpuT1DNfGKJKnkSwnRiw"
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")   # не используется, но оставим
 SUNO_API_URL = os.getenv("SUNO_API_URL", "http://localhost:3000")
-PROVIDER_TOKEN = os.getenv("PROVIDER_TOKEN")
+PROVIDER_TOKEN = "381764678:TEST:173377"
 DEEPSEEK_API_URL = os.getenv("DEEPSEEK_API_URL", "http://localhost:3001")   # новая строка
-MYNALOG_JWT_TOKEN = os.getenv("MYNALOG_JWT_TOKEN")
-MYNALOG_INN = os.getenv("MYNALOG_INN")
-MYNALOG_PHONE = os.getenv("MYNALOG_PHONE")
+MYNALOG_JWT_TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ7XCJpZFwiOjU2NDk0LFwiZmlkXCI6MTAwMDY4NDczNzYyLFwiY3JlYXRlZEF0XCI6XCIyMDI2LTAzLTI4VDE2OjM3OjM2LjIyMDQ4NFpcIixcImF2YWlsYWJsZVRvXCI6XCIyMDI2LTA0LTI3VDE5OjM3OjM1KzAzOjAwXCJ9IiwiZXhwIjoxNzc3MzA3ODU1fQ.oDOcYs6hnhZqjV8kpXBRviaX7ai85rxMvfsZN-JP_OeMkY92V3OJQGn__sC8Gma-S-xovYAbXkOVWyyxEHwWpQ"
+MYNALOG_INN = "231905766239"
+MYNALOG_PHONE = "+79384558854"
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")
 GLOBAL_LIMIT = int(os.getenv("GLOBAL_LIMIT", 200))
