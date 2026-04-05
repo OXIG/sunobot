@@ -9,7 +9,7 @@ async def get_or_create_user(session: AsyncSession, telegram_id: int) -> User:
     result = await session.execute(select(User).where(User.telegram_id == telegram_id))
     user = result.scalar_one_or_none()
     if not user:
-        user = User(telegram_id=telegram_id)
+        user = User(telegram_id=telegram_id, balance=0)
         session.add(user)
         await session.commit()
     return user
