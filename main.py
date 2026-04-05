@@ -3,7 +3,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiohttp import web
-from config import BOT_TOKEN, YOOKASSA_RETURN_URL
+from config import BOT_TOKEN
 from database.session import init_db
 from handlers import start, balance, payment, generate, admin
 from services.yookassa import Configuration
