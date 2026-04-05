@@ -1,17 +1,40 @@
-# handlers/payment.py (продолжение)
-
+from aiogram import Router, types, F
+from aiogram.filters import Command
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message
 from aiogram import Bot
-from aiogram.types import LabeledPrice, PreCheckoutQuery, Message
-from config import PROVIDER_TOKEN  # Токен мы добавим в config
+from config import PROVIDER_TOKEN
 
-# ... (предыдущий код с catalog и клавиатурой) ...
+router = Router()
 
-# Этот обработчик будет ловить нажатие на кнопки товаров
+# Клавиатура с товарами
+def get_products_keyboard():
+    buttons = [
+        [InlineKeyboardButton(text="🎵 1 генерация (50 ₽)", callback_data="buy_50")],
+        [InlineKeyboardButton(text="🎶 3 генерации (150 ₽)", callback_data="buy_150")],
+        [InlineKeyboardButton(text="🎤 5 генераций (250 ₽)", callback_data="buy_250")],
+        [InlineKeyboardButton(text="🎧 10 генераций (500 ₽)", callback_data="buy_500")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+# Команда /catalog
+@router.message(Command("catalog"))
+async def show_catalog(message: types.Message):
+    await message.answer(
+        "🛍 *Добро пожаловать в магазин Нейромузыки!*\n\n"
+        "Выберите количество генераций, чтобы создать уникальные треки с помощью ИИ.\n\n"
+        "🎵 *1 генерация* — 50 ₽\n"
+        "🎶 *3 генерации* — 150 ₽\n"
+        "🎤 *5 генераций* — 250 ₽\n"
+        "🎧 *10 генераций* — 500 ₽",
+        reply_markup=get_products_keyboard(),
+        parse_mode="Markdown"
+    )
+
+# Обработчик нажатия на кнопки товаров
 @router.callback_query(lambda c: c.data and c.data.startswith("buy_"))
 async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
-    # Определяем, что купили, по callback data
     price_map = {
-        "buy_50": (5000, "1 генерация музыки"),   # 5000 копеек = 50 руб
+        "buy_50": (5000, "1 генерация музыки"),
         "buy_150": (15000, "3 генерации музыки"),
         "buy_250": (25000, "5 генераций музыки"),
         "buy_500": (50000, "10 генераций музыки"),
@@ -23,31 +46,28 @@ async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
         chat_id=callback.from_user.id,
         title="Пополнение баланса",
         description=description,
-        payload=f"balance_{callback.data}", # Уникальный идентификатор платежа
-        provider_token=PROVIDER_TOKEN,      # Тот самый тестовый токен
+        payload=f"balance_{callback.data}",
+        provider_token=PROVIDER_TOKEN,
         currency="RUB",
         prices=prices,
-        need_phone_number=True,             # ЮKassa просит телефон для чека
-        need_email=True,                    # И email
+        need_phone_number=True,
+        need_email=True,
         send_phone_number_to_provider=True,
         send_email_to_provider=True,
     )
-    await callback.answer() # Закрываем "часики" на кнопке
+    await callback.answer()
 
-# Обязательный обработчик для проверки платежа перед списанием
+# Обязательный обработчик предварительной проверки
 @router.pre_checkout_query()
 async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: Bot):
-    # Всегда отвечаем "ок", чтобы Telegram разрешил оплату
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 # Обработчик успешного платежа
 @router.message(F.successful_payment)
 async def process_successful_payment(message: Message):
-    # Здесь можно начислить пользователю генерации
     total_amount = message.successful_payment.total_amount // 100
     await message.answer(
         f"✅ Оплата на сумму {total_amount} ₽ успешно прошла!\n"
         f"Генерации скоро появятся на вашем балансе. Спасибо за покупку!"
     )
-    # Вызовите здесь вашу функцию начисления баланса, например:
-    # await add_generations_to_user(message.from_user.id, total_amount // 50)
+    # Здесь вызывайте вашу функцию начисления баланса
