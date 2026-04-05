@@ -3,7 +3,8 @@ from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message
 from aiogram import Bot
 from config import PROVIDER_TOKEN
-
+import logging
+logger = logging.getLogger(__name__)
 router = Router()
 
 # --- Клавиатура с товарами ---
