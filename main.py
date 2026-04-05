@@ -5,8 +5,6 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
 from database.session import init_db
 from handlers import start, balance, payment, generate, admin
-from handlers import generate
-dp.include_router(generate.router)
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +17,7 @@ dp = Dispatcher(storage=MemoryStorage())
 dp.include_router(start.router)
 dp.include_router(balance.router)
 dp.include_router(payment.router)
-dp.include_router(generate.router)   # <-- эта строка была пропущена
+dp.include_router(generate.router)
 dp.include_router(admin.router)
 
 # Запуск бота
