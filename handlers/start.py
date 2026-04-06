@@ -1,6 +1,6 @@
 from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 router = Router()
 
@@ -35,14 +35,8 @@ async def cmd_start(message: types.Message):
 async def inline_generate(callback: CallbackQuery):
     await callback.answer()
     from .generate import start_generation
-    fake_message = Message(
-        message_id=callback.message.message_id,
-        date=callback.message.date,
-        chat=callback.message.chat,
-        from_user=callback.from_user,
-        text="/generate"
-    )
-    fake_message.bot = callback.bot  # КЛЮЧЕВАЯ СТРОКА: привязываем бота к сообщению
+    # Создаём копию сообщения с заменой from_user на реального пользователя
+    fake_message = callback.message.model_copy(update={'from_user': callback.from_user})
     await start_generation(fake_message, None)
 
 @router.callback_query(lambda c: c.data == "balance")
