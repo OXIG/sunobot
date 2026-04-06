@@ -1,17 +1,20 @@
 from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 router = Router()
 
+# Функция для создания главного меню (inline-клавиатуры)
 def get_main_keyboard():
     buttons = [
-        [KeyboardButton(text="🎵 СГЕНЕРИРОВАТЬ")],
-        [KeyboardButton(text="💰 БАЛАНС"), KeyboardButton(text="💳 ПОПОЛНЕНИЕ")],
-        [KeyboardButton(text="❓ ПОМОЩЬ")]
+        [InlineKeyboardButton(text="🎵 СГЕНЕРИРОВАТЬ", callback_data="generate")],
+        [InlineKeyboardButton(text="💰 БАЛАНС", callback_data="balance"),
+         InlineKeyboardButton(text="💳 ПОПОЛНЕНИЕ", callback_data="pay")],
+        [InlineKeyboardButton(text="❓ ПОМОЩЬ", callback_data="help")]
     ]
-    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+# Хендлер команды /start
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
     await message.answer(
@@ -21,26 +24,33 @@ async def cmd_start(message: types.Message):
         reply_markup=get_main_keyboard()
     )
 
-@router.message(lambda msg: msg.text == "🎵 СГЕНЕРИРОВАТЬ")
-async def generate_button(message: types.Message):
+# Хендлер для нажатия на кнопку "СГЕНЕРИРОВАТЬ"
+@router.callback_query(lambda c: c.data == "generate")
+async def process_generate_callback(callback: CallbackQuery):
+    await callback.answer() # Убираем "часики" на кнопке
     from .generate import start_generation
-    # start_generation ожидает два аргумента: message и state.
-    # Передаём state=None, т.к. это начало нового диалога.
-    await start_generation(message, None)
+    # Вызываем вашу существующую функцию, передавая сообщение и state=None
+    await start_generation(callback.message, None)
 
-@router.message(lambda msg: msg.text == "💰 БАЛАНС")
-async def balance_button(message: types.Message):
+# Хендлер для кнопки "БАЛАНС"
+@router.callback_query(lambda c: c.data == "balance")
+async def process_balance_callback(callback: CallbackQuery):
+    await callback.answer()
     from .balance import show_balance
-    await show_balance(message)
+    await show_balance(callback.message)
 
-@router.message(lambda msg: msg.text == "💳 ПОПОЛНЕНИЕ")
-async def pay_button(message: types.Message):
+# Хендлер для кнопки "ПОПОЛНЕНИЕ"
+@router.callback_query(lambda c: c.data == "pay")
+async def process_pay_callback(callback: CallbackQuery):
+    await callback.answer()
     from .payment import cmd_pay
-    await cmd_pay(message)
+    await cmd_pay(callback.message)
 
-@router.message(lambda msg: msg.text == "❓ ПОМОЩЬ")
-async def help_button(message: types.Message):
-    await message.answer(
+# Хендлер для кнопки "ПОМОЩЬ"
+@router.callback_query(lambda c: c.data == "help")
+async def process_help_callback(callback: CallbackQuery):
+    await callback.answer()
+    await callback.message.answer(
         "Доступные команды:\n"
         "/start — приветствие\n"
         "/generate — начать создание песни\n"
