@@ -5,23 +5,21 @@ from config import OPENROUTER_API_KEY
 logger = logging.getLogger(__name__)
 
 async def get_lyrics(messages_history: list) -> str:
-    # Извлекаем последнее сообщение пользователя
     last_user_msg = None
     for msg in reversed(messages_history):
         if msg.get("role") == "user":
             last_user_msg = msg.get("content")
             break
     if not last_user_msg:
-        raise Exception("Не найдено сообщение пользователя в истории")
+        raise Exception("Не найдено сообщение пользователя")
 
-    # Используем бесплатную модель через OpenRouter
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {OPENROUTER_API_KEY}"
     }
     payload = {
-        "model": "google/gemma-2-9b-it:free",  # бесплатная, мощная
+        "model": "nvidia/nemotron-3-super:free",
         "messages": [{"role": "user", "content": last_user_msg}],
         "temperature": 0.7,
         "max_tokens": 1000
