@@ -29,13 +29,12 @@ async def cmd_start(message: types.Message):
         "Используйте кнопки ниже или под сообщением для навигации.",
         reply_markup=get_reply_keyboard()
     )
-    await message.answer("Меню:", reply_markup=get_inline_keyboard())
+    await message.answer("Меню", reply_markup=get_inline_keyboard())
 
 @router.callback_query(lambda c: c.data == "generate")
 async def inline_generate(callback: CallbackQuery):
     await callback.answer()
     from .generate import start_generation
-    # Создаём фиктивное сообщение от имени пользователя
     fake_message = Message(
         message_id=callback.message.message_id,
         date=callback.message.date,
@@ -43,6 +42,7 @@ async def inline_generate(callback: CallbackQuery):
         from_user=callback.from_user,
         text="/generate"
     )
+    fake_message.bot = callback.bot  # КЛЮЧЕВАЯ СТРОКА: привязываем бота к сообщению
     await start_generation(fake_message, None)
 
 @router.callback_query(lambda c: c.data == "balance")
