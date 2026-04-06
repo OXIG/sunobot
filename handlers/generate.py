@@ -6,7 +6,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from database.crud import get_user_balance, deduct_balance, save_generation, get_or_create_user
 from database.session import async_session_maker
-from services.deepseek import get_lyrics   # используем OpenRouter
+from services.deepseek import get_lyrics
 from services.suno import SunoClient
 from services.global_counter import can_generate, use_generation
 from config import SUNO_API_URL
@@ -21,7 +21,7 @@ class SongCreation(StatesGroup):
     waiting_for_theme = State()
     waiting_for_style = State()
     waiting_for_vocal = State()
-    waiting_for_approval = State()  # больше нет waiting_for_lyrics
+    waiting_for_approval = State()
 
 def style_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -77,7 +77,7 @@ async def style_callback(callback: types.CallbackQuery, state: FSMContext):
         await state.set_state(SongCreation.waiting_for_vocal)
     await callback.answer()
 
-@router.message(SongCreation.waiting_for_style)  # ручной ввод жанра
+@router.message(SongCreation.waiting_for_style)
 async def style_manual(message: types.Message, state: FSMContext):
     await state.update_data(style=message.text)
     await message.answer("🎤 Выберите тип вокала:", reply_markup=vocal_keyboard())
@@ -92,9 +92,8 @@ async def vocal_callback(callback: types.CallbackQuery, state: FSMContext):
     else:
         await state.update_data(vocal=vocal)
         await callback.message.answer(f"🎤 Выбрано: {vocal}")
-        # Генерируем текст песни через нейросеть
+        # Генерация текста
         await callback.message.answer("🤖 Генерирую текст песни... Подождите немного.")
-        # Собираем историю для DeepSeek (как раньше)
         messages = []
         data = await state.get_data()
         theme = data.get("theme", "")
