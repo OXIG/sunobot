@@ -70,6 +70,7 @@ async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
             send_phone_number_to_provider=True,
             send_email_to_provider=True,
         )
+        logger.info(f"Инвойс отправлен пользователю {callback.from_user.id}")
     except Exception as e:
         logger.exception("Ошибка при отправке инвойса")
         await callback.message.answer(f"❌ Ошибка при создании счета: {str(e)}")
@@ -78,15 +79,18 @@ async def process_buy_callback(callback: types.CallbackQuery, bot: Bot):
 
 @router.pre_checkout_query()
 async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: Bot):
+    logger.info(f"Pre-checkout query от пользователя {pre_checkout_query.from_user.id}")
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 @router.message(F.successful_payment)
 async def process_successful_payment(message: Message):
     total_amount = message.successful_payment.total_amount // 100  # рубли
-    # Определяем количество генераций по сумме
+    logger.info(f"Успешный платеж от {message.from_user.id} на сумму {total_amount} руб.")
+    
     generations_map = {80: 1, 240: 3, 400: 5, 800: 10}
     generations = generations_map.get(total_amount, 0)
     if generations == 0:
+        logger.error(f"Неизвестная сумма платежа: {total_amount}")
         await message.answer("❌ Неизвестная сумма платежа. Свяжитесь с поддержкой.")
         return
 
@@ -95,16 +99,21 @@ async def process_successful_payment(message: Message):
         user = await get_or_create_user(session, message.from_user.id)
         await add_balance(session, message.from_user.id, generations)
         new_balance = await get_user_balance(session, message.from_user.id)
+    logger.info(f"Пользователю {message.from_user.id} начислено {generations} генераций. Новый баланс: {new_balance}")
 
     # Кнопка для перехода к генерации
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎵 Сгенерировать песню", callback_data="generate")]
     ])
 
-    await message.answer(
-        f"✅ Оплата на сумму {total_amount} ₽ успешно прошла!\n"
-        f"Вам начислено {generations} генераций.\n"
-        f"💰 Ваш баланс: {new_balance} генераций.\n\n"
-        f"Теперь вы можете создать песню!",
-        reply_markup=keyboard
-    )
+    try:
+        await message.answer(
+            f"✅ Оплата на сумму {total_amount} ₽ успешно прошла!\n"
+            f"Вам начислено {generations} генераций.\n"
+            f"💰 Ваш баланс: {new_balance} генераций.\n\n"
+            f"Теперь вы можете создать песню!",
+            reply_markup=keyboard
+        )
+        logger.info(f"Сообщение с кнопкой генерации отправлено пользователю {message.from_user.id}")
+    except Exception as e:
+        logger.exception(f"Ошибка отправки сообщения с кнопкой: {e}")
