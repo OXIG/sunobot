@@ -2,11 +2,10 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 from database.crud import get_user_balance, deduct_balance, save_generation, get_or_create_user
 from database.session import async_session_maker
-from services.deepseek import get_lyrics
 from services.suno import SunoClient
 from services.global_counter import can_generate, use_generation
 from config import SUNO_API_URL
@@ -21,24 +20,27 @@ class SongCreation(StatesGroup):
     waiting_for_theme = State()
     waiting_for_style = State()
     waiting_for_vocal = State()
+    waiting_for_lyrics = State()
     waiting_for_approval = State()
 
-async def get_deepseek_messages(state: FSMContext):
-    data = await state.get_data()
-    return data.get("messages", [{"role": "system", "content": "Ты — ассистент, помогающий написать текст песни. Задавай уточняющие вопросы о теме, жанре, настроении. После того как текст согласован, предложи нажать кнопку 'Сгенерировать песню'."}])
+def style_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Рок", callback_data="style_rock")],
+        [InlineKeyboardButton(text="Поп", callback_data="style_pop")],
+        [InlineKeyboardButton(text="Рэп", callback_data="style_rap")],
+        [InlineKeyboardButton(text="Джаз", callback_data="style_jazz")],
+        [InlineKeyboardButton(text="✏️ Свой вариант", callback_data="style_other")]
+    ])
 
-async def add_to_history(state: FSMContext, role: str, content: str):
-    messages = await get_deepseek_messages(state)
-    messages.append({"role": role, "content": content})
-    await state.update_data(messages=messages)
-
-async def call_deepseek(state: FSMContext) -> str:
-    messages = await get_deepseek_messages(state)
-    return await get_lyrics(messages)
+def vocal_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👨 Мужской", callback_data="vocal_male")],
+        [InlineKeyboardButton(text="👩 Женский", callback_data="vocal_female")],
+        [InlineKeyboardButton(text="🎤 Другое", callback_data="vocal_other")]
+    ])
 
 @router.message(Command("generate"))
 async def start_generation(message: types.Message, state: FSMContext):
-    logger.info("Команда /generate получена")
     async with async_session_maker() as session:
         balance = await get_user_balance(session, message.from_user.id)
     if balance <= 0:
@@ -49,45 +51,58 @@ async def start_generation(message: types.Message, state: FSMContext):
         return
     await message.answer("✍️ О чём будет ваша песня? Напишите тему, идею, настроение.")
     await state.set_state(SongCreation.waiting_for_theme)
-    logger.info("Состояние установлено: waiting_for_theme")
 
 @router.message(SongCreation.waiting_for_theme)
 async def theme_received(message: types.Message, state: FSMContext):
-    logger.info(f"Получено сообщение в состоянии waiting_for_theme: {message.text}")
-    # Сохраняем тему
-    await add_to_history(state, "user", f"Тема: {message.text}")
-    # Вызываем DeepSeek для генерации ответа (он задаст уточняющие вопросы)
-    response = await call_deepseek(state)
-    await add_to_history(state, "assistant", response)
-    await message.answer(response)
-    await message.answer("🎸 В каком жанре вы хотите песню?")
+    await state.update_data(theme=message.text)
+    await message.answer("🎸 Выберите жанр:", reply_markup=style_keyboard())
     await state.set_state(SongCreation.waiting_for_style)
-    logger.info("Состояние изменено на waiting_for_style")
 
-@router.message(SongCreation.waiting_for_style)
-async def style_received(message: types.Message, state: FSMContext):
-    logger.info(f"Получен жанр: {message.text}")
-    await add_to_history(state, "user", f"Жанр: {message.text}")
+@router.callback_query(SongCreation.waiting_for_style, lambda c: c.data.startswith("style_"))
+async def style_callback(callback: types.CallbackQuery, state: FSMContext):
+    style = callback.data.split("_")[1]
+    if style == "other":
+        await callback.message.answer("Напишите ваш жанр вручную:")
+        await state.set_state(SongCreation.waiting_for_style)
+    else:
+        await state.update_data(style=style)
+        await callback.message.answer(f"🎸 Выбрано: {style}")
+        await callback.message.answer("🎤 Выберите тип вокала:", reply_markup=vocal_keyboard())
+        await state.set_state(SongCreation.waiting_for_vocal)
+    await callback.answer()
+
+@router.message(SongCreation.waiting_for_style)  # ручной ввод жанра
+async def style_manual(message: types.Message, state: FSMContext):
     await state.update_data(style=message.text)
-    response = await call_deepseek(state)
-    await add_to_history(state, "assistant", response)
-    await message.answer(response)
-    await message.answer("🎤 Какой вокал: мужской или женский?")
+    await message.answer("🎤 Выберите тип вокала:", reply_markup=vocal_keyboard())
     await state.set_state(SongCreation.waiting_for_vocal)
 
+@router.callback_query(SongCreation.waiting_for_vocal, lambda c: c.data.startswith("vocal_"))
+async def vocal_callback(callback: types.CallbackQuery, state: FSMContext):
+    vocal = callback.data.split("_")[1]
+    if vocal == "other":
+        await callback.message.answer("Напишите тип вокала вручную:")
+        await state.set_state(SongCreation.waiting_for_vocal)
+    else:
+        await state.update_data(vocal=vocal)
+        await callback.message.answer(f"🎤 Выбрано: {vocal}")
+        await callback.message.answer("📝 Теперь напишите текст песни (или отправьте готовый текст).")
+        await state.set_state(SongCreation.waiting_for_lyrics)
+    await callback.answer()
+
 @router.message(SongCreation.waiting_for_vocal)
-async def vocal_received(message: types.Message, state: FSMContext):
-    logger.info(f"Получен вокал: {message.text}")
-    await add_to_history(state, "user", f"Вокал: {message.text}")
+async def vocal_manual(message: types.Message, state: FSMContext):
     await state.update_data(vocal=message.text)
-    response = await call_deepseek(state)
-    await add_to_history(state, "assistant", response)
-    await message.answer(response)
-    # После этого DeepSeek должен выдать текст песни. Показываем кнопку подтверждения.
+    await message.answer("📝 Теперь напишите текст песни (или отправьте готовый текст).")
+    await state.set_state(SongCreation.waiting_for_lyrics)
+
+@router.message(SongCreation.waiting_for_lyrics)
+async def lyrics_received(message: types.Message, state: FSMContext):
+    await state.update_data(lyrics=message.text)
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Сгенерировать песню", callback_data="confirm_generate")]
     ])
-    await message.answer("Если всё устраивает, нажмите кнопку для генерации.", reply_markup=keyboard)
+    await message.answer("Текст сохранён. Нажмите кнопку для генерации музыки.", reply_markup=keyboard)
     await state.set_state(SongCreation.waiting_for_approval)
 
 @router.callback_query(SongCreation.waiting_for_approval, F.data == "confirm_generate")
@@ -106,22 +121,15 @@ async def confirm_generation(callback: types.CallbackQuery, state: FSMContext):
 
     await callback.message.answer("🎵 Генерация началась, обычно это занимает не более 5 минут...")
 
-    # Получаем последний текст от DeepSeek (последнее сообщение ассистента)
-    messages = await get_deepseek_messages(state)
-    lyrics = None
-    for msg in reversed(messages):
-        if msg["role"] == "assistant":
-            lyrics = msg["content"]
-            break
-
-    if not lyrics:
-        await callback.message.answer("❌ Не удалось получить текст песни. Попробуйте начать заново /generate")
-        await callback.answer()
-        return
-
     data = await state.get_data()
+    lyrics = data.get("lyrics")
     style = data.get("style", "pop")
     vocal = data.get("vocal", "male")
+
+    if not lyrics:
+        await callback.message.answer("❌ Текст песни не найден. Начните сначала /generate")
+        await callback.answer()
+        return
 
     audio1, audio2 = await suno.generate(lyrics, style, vocal)
     if not audio1 or not audio2:
