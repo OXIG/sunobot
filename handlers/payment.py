@@ -84,7 +84,7 @@ async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery, bot: 
 
 @router.message(F.successful_payment)
 async def process_successful_payment(message: Message):
-    total_amount = message.successful_payment.total_amount // 100  # рубли
+    total_amount = message.successful_payment.total_amount // 100
     logger.info(f"Успешный платеж от {message.from_user.id} на сумму {total_amount} руб.")
     
     generations_map = {80: 1, 240: 3, 400: 5, 800: 10}
@@ -94,14 +94,11 @@ async def process_successful_payment(message: Message):
         await message.answer("❌ Неизвестная сумма платежа. Свяжитесь с поддержкой.")
         return
 
-    # Начисляем генерации пользователю
     async with async_session_maker() as session:
-        user = await get_or_create_user(session, message.from_user.id)
         await add_balance(session, message.from_user.id, generations)
         new_balance = await get_user_balance(session, message.from_user.id)
     logger.info(f"Пользователю {message.from_user.id} начислено {generations} генераций. Новый баланс: {new_balance}")
 
-    # Кнопка для перехода к генерации
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎵 Сгенерировать песню", callback_data="generate")]
     ])
@@ -109,7 +106,6 @@ async def process_successful_payment(message: Message):
     try:
         await message.answer(
             f"✅ Оплата на сумму {total_amount} ₽ успешно прошла!\n"
-            f"Вам начислено {generations} генераций.\n"
             f"💰 Ваш баланс: {new_balance} генераций.\n\n"
             f"Теперь вы можете создать песню!",
             reply_markup=keyboard
