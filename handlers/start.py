@@ -29,7 +29,7 @@ async def cmd_start(message: types.Message):
         "Используйте кнопки ниже или под сообщением для навигации.",
         reply_markup=get_reply_keyboard()
     )
-    await message.answer("Меню", reply_markup=get_inline_keyboard())
+    await message.answer("Меню:", reply_markup=get_inline_keyboard())
 
 @router.callback_query(lambda c: c.data == "generate")
 async def inline_generate(callback: CallbackQuery):
