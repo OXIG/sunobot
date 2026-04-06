@@ -6,6 +6,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from database.crud import get_user_balance, deduct_balance, save_generation, get_or_create_user
 from database.session import async_session_maker
+from services.deepseek import get_lyrics   # используем OpenRouter
 from services.suno import SunoClient
 from services.global_counter import can_generate, use_generation
 from config import SUNO_API_URL
@@ -20,8 +21,7 @@ class SongCreation(StatesGroup):
     waiting_for_theme = State()
     waiting_for_style = State()
     waiting_for_vocal = State()
-    waiting_for_lyrics = State()
-    waiting_for_approval = State()
+    waiting_for_approval = State()  # больше нет waiting_for_lyrics
 
 def style_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -92,24 +92,57 @@ async def vocal_callback(callback: types.CallbackQuery, state: FSMContext):
     else:
         await state.update_data(vocal=vocal)
         await callback.message.answer(f"🎤 Выбрано: {vocal}")
-        await callback.message.answer("📝 Теперь напишите текст песни (или отправьте готовый текст).")
-        await state.set_state(SongCreation.waiting_for_lyrics)
+        # Генерируем текст песни через нейросеть
+        await callback.message.answer("🤖 Генерирую текст песни... Подождите немного.")
+        # Собираем историю для DeepSeek (как раньше)
+        messages = []
+        data = await state.get_data()
+        theme = data.get("theme", "")
+        style = data.get("style", "поп")
+        vocal = data.get("vocal", "мужской")
+        messages.append({"role": "user", "content": f"Тема: {theme}"})
+        messages.append({"role": "user", "content": f"Жанр: {style}"})
+        messages.append({"role": "user", "content": f"Вокал: {vocal}"})
+        messages.append({"role": "user", "content": "Напиши текст песни на русском языке, 2-3 куплета и припев."})
+        try:
+            lyrics = await get_lyrics(messages)
+            await state.update_data(lyrics=lyrics)
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🚀 Сгенерировать песню", callback_data="confirm_generate")]
+            ])
+            await callback.message.answer(f"📝 Вот текст песни:\n\n{lyrics}\n\nНажмите кнопку, чтобы начать генерацию музыки.", reply_markup=keyboard)
+            await state.set_state(SongCreation.waiting_for_approval)
+        except Exception as e:
+            logger.exception("Ошибка генерации текста")
+            await callback.message.answer("❌ Не удалось сгенерировать текст песни. Попробуйте позже.")
+            await state.clear()
     await callback.answer()
 
 @router.message(SongCreation.waiting_for_vocal)
 async def vocal_manual(message: types.Message, state: FSMContext):
     await state.update_data(vocal=message.text)
-    await message.answer("📝 Теперь напишите текст песни (или отправьте готовый текст).")
-    await state.set_state(SongCreation.waiting_for_lyrics)
-
-@router.message(SongCreation.waiting_for_lyrics)
-async def lyrics_received(message: types.Message, state: FSMContext):
-    await state.update_data(lyrics=message.text)
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Сгенерировать песню", callback_data="confirm_generate")]
-    ])
-    await message.answer("Текст сохранён. Нажмите кнопку для генерации музыки.", reply_markup=keyboard)
-    await state.set_state(SongCreation.waiting_for_approval)
+    await message.answer("🤖 Генерирую текст песни... Подождите немного.")
+    messages = []
+    data = await state.get_data()
+    theme = data.get("theme", "")
+    style = data.get("style", "поп")
+    vocal = data.get("vocal", "мужской")
+    messages.append({"role": "user", "content": f"Тема: {theme}"})
+    messages.append({"role": "user", "content": f"Жанр: {style}"})
+    messages.append({"role": "user", "content": f"Вокал: {vocal}"})
+    messages.append({"role": "user", "content": "Напиши текст песни на русском языке, 2-3 куплета и припев."})
+    try:
+        lyrics = await get_lyrics(messages)
+        await state.update_data(lyrics=lyrics)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🚀 Сгенерировать песню", callback_data="confirm_generate")]
+        ])
+        await message.answer(f"📝 Вот текст песни:\n\n{lyrics}\n\nНажмите кнопку, чтобы начать генерацию музыки.", reply_markup=keyboard)
+        await state.set_state(SongCreation.waiting_for_approval)
+    except Exception as e:
+        logger.exception("Ошибка генерации текста")
+        await message.answer("❌ Не удалось сгенерировать текст песни. Попробуйте позже.")
+        await state.clear()
 
 @router.callback_query(SongCreation.waiting_for_approval, F.data == "confirm_generate")
 async def confirm_generation(callback: types.CallbackQuery, state: FSMContext):
