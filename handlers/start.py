@@ -1,10 +1,9 @@
 from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 router = Router()
 
-# Reply-кнопки (внизу экрана)
 def get_reply_keyboard():
     buttons = [
         [KeyboardButton(text="/generate 🎵")],
@@ -13,7 +12,6 @@ def get_reply_keyboard():
     ]
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
-# Inline-кнопки (под сообщением)
 def get_inline_keyboard():
     buttons = [
         [InlineKeyboardButton(text="🎵 Сгенерировать", callback_data="generate")],
@@ -29,10 +27,38 @@ async def cmd_start(message: types.Message):
         "🎵 Добро пожаловать в Suno Bot!\n\n"
         "Я помогу создать песню с помощью нейросети. Для генерации нужно пополнить баланс.\n\n"
         "Используйте кнопки ниже или под сообщением для навигации.",
-        reply_markup=get_reply_keyboard()       # Reply-кнопки
+        reply_markup=get_reply_keyboard()
     )
-    # Дополнительно отправляем сообщение с Inline-кнопками
-    await message.answer(
-        "А также можете использовать инлайн-кнопки:",
-        reply_markup=get_inline_keyboard()
+    await message.answer("Инлайн-меню:", reply_markup=get_inline_keyboard())
+
+# Обработчики инлайн-кнопок
+@router.callback_query(lambda c: c.data == "generate")
+async def inline_generate(callback: CallbackQuery):
+    await callback.answer()
+    from .generate import start_generation
+    await start_generation(callback.message, None)
+
+@router.callback_query(lambda c: c.data == "balance")
+async def inline_balance(callback: CallbackQuery):
+    await callback.answer()
+    from .balance import show_balance
+    await show_balance(callback.message)
+
+@router.callback_query(lambda c: c.data == "pay")
+async def inline_pay(callback: CallbackQuery):
+    await callback.answer()
+    from .payment import cmd_pay
+    await cmd_pay(callback.message)
+
+@router.callback_query(lambda c: c.data == "help")
+async def inline_help(callback: CallbackQuery):
+    await callback.answer()
+    await callback.message.answer(
+        "Доступные команды:\n"
+        "/start — приветствие\n"
+        "/generate — начать создание песни\n"
+        "/balance — мой баланс\n"
+        "/pay — пополнить баланс\n"
+        "/catalog — магазин\n"
+        "/help — эта справка"
     )
