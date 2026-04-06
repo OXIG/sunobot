@@ -6,9 +6,9 @@ router = Router()
 
 def get_main_keyboard():
     buttons = [
-        [KeyboardButton(text="/generate 🎵")],
-        [KeyboardButton(text="/balance 💰"), KeyboardButton(text="/pay 💳")],
-        [KeyboardButton(text="/help ❓")]
+        [KeyboardButton(text="🎵 СГЕНЕРИРОВАТЬ ")],
+        [KeyboardButton(text="💰 БАЛАНС"), KeyboardButton(text="💳 ПОПОЛНЕНИЕ")],
+        [KeyboardButton(text="❓ ПОМОЩЬ")]
     ]
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
