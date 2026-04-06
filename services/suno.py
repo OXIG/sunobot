@@ -9,11 +9,11 @@ class SunoClient:
         self.base_url = base_url.rstrip('/')
         self.session = None
 
-    async def _request(self, method: str, endpoint: str, **kwargs) -> Any:
+    async def _request(self, method: str, endpoint: str, timeout: int = 120, **kwargs) -> Any:
         url = f"{self.base_url}{endpoint}"
         if self.session is None:
             self.session = aiohttp.ClientSession()
-        async with self.session.request(method, url, **kwargs) as resp:
+        async with self.session.request(method, url, timeout=aiohttp.ClientTimeout(total=timeout), **kwargs) as resp:
             if resp.status != 200:
                 text = await resp.text()
                 logger.error(f"Suno API error {resp.status}: {text}")
@@ -28,14 +28,14 @@ class SunoClient:
         payload = {
             "prompt": lyrics,
             "tags": tags,
-            "title": "NeuralMusic Track",
+            "title": "Suno Bot Track",
             "make_instrumental": False,
             "wait_audio": False
         }
 
         try:
-            # Используем эндпоинт /generate (без /api)
-            result = await self._request("POST", "/generate", json=payload)
+            # Используем эндпоинт /songs (как в документации)
+            result = await self._request("POST", "/songs", json=payload)
             if not isinstance(result, list) or len(result) < 2:
                 logger.error(f"Unexpected generate response: {result}")
                 return None, None
@@ -45,10 +45,9 @@ class SunoClient:
             return None, None
 
         # Опрашиваем статус
-        for _ in range(60):
+        for _ in range(24):  # 24 * 5 = 120 секунд
             await asyncio.sleep(5)
             try:
-                # Для получения информации о песне используем /get_song (см. документацию)
                 info = await self._request("GET", f"/get_song?id={','.join(ids)}")
                 if not isinstance(info, list) or len(info) < 2:
                     continue
@@ -64,7 +63,6 @@ class SunoClient:
         return None, None
 
     async def get_limits(self) -> Dict:
-        """Получить оставшиеся лимиты (токены)"""
         return await self._request("GET", "/credits")
 
     async def close(self):
