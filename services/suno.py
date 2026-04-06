@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import re
 from typing import Optional, Tuple, Dict, Any
 from loguru import logger
 from config import SUNO_API_URL
@@ -21,12 +22,14 @@ class SunoClient:
             return await resp.json()
 
     async def generate(self, lyrics: str, style: str, vocal_type: str = None) -> Tuple[Optional[str], Optional[str]]:
+        # Очищаем текст от markdown-символов (например, **жирный**)
+        clean_lyrics = re.sub(r'\*\*([^*]+)\*\*', r'\1', lyrics)
         tags = style
         if vocal_type and vocal_type.lower() in ["male", "female"]:
             tags = f"{style}, {vocal_type} vocal"
 
         payload = {
-            "prompt": lyrics,
+            "prompt": clean_lyrics,
             "tags": tags,
             "title": "Suno Bot Track",
             "make_instrumental": False,
@@ -34,8 +37,8 @@ class SunoClient:
         }
 
         try:
-            # Используем эндпоинт /songs (как в документации)
-            result = await self._request("POST", "/songs", json=payload)
+            # Используем эндпоинт /generate (как в документации)
+            result = await self._request("POST", "/generate", json=payload)
             if not isinstance(result, list) or len(result) < 2:
                 logger.error(f"Unexpected generate response: {result}")
                 return None, None
@@ -48,7 +51,8 @@ class SunoClient:
         for _ in range(24):  # 24 * 5 = 120 секунд
             await asyncio.sleep(5)
             try:
-                info = await self._request("GET", f"/get_song?id={','.join(ids)}")
+                # Для получения информации используем /get
+                info = await self._request("GET", f"/get?ids={','.join(ids)}")
                 if not isinstance(info, list) or len(info) < 2:
                     continue
                 if info[0].get("status") == "streaming" and info[1].get("status") == "streaming":
@@ -63,7 +67,7 @@ class SunoClient:
         return None, None
 
     async def get_limits(self) -> Dict:
-        return await self._request("GET", "/credits")
+        return await self._request("GET", "/get_limit")
 
     async def close(self):
         if self.session:
