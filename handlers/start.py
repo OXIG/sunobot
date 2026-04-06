@@ -13,6 +13,7 @@ def get_reply_keyboard():
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
 def get_inline_keyboard():
+    # Делаем по одной кнопке в строке, чтобы они были шире
     buttons = [
         [InlineKeyboardButton(text="🎵 Сгенерировать", callback_data="generate")],
         [InlineKeyboardButton(text="💰 Баланс", callback_data="balance")],
@@ -23,13 +24,15 @@ def get_inline_keyboard():
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
+    # Отправляем приветствие с Reply-клавиатурой
     await message.answer(
         "🎵 Добро пожаловать в Suno Bot!\n\n"
         "Я помогу создать песню с помощью нейросети. Для генерации нужно пополнить баланс.\n\n"
         "Используйте кнопки ниже или под сообщением для навигации.",
         reply_markup=get_reply_keyboard()
     )
-    await message.answer("Инлайн-меню:", reply_markup=get_inline_keyboard())
+    # Отправляем инлайн-кнопки без лишнего текста
+    await message.answer("", reply_markup=get_inline_keyboard())
 
 # Обработчики инлайн-кнопок
 @router.callback_query(lambda c: c.data == "generate")
