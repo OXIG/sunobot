@@ -2,7 +2,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from database.crud import get_user_balance, deduct_balance, save_generation, get_or_create_user
 from database.session import async_session_maker
@@ -44,7 +44,13 @@ async def start_generation(message: types.Message, state: FSMContext):
     async with async_session_maker() as session:
         balance = await get_user_balance(session, message.from_user.id)
     if balance <= 0:
-        await message.answer("❌ У вас недостаточно средств. Пополните баланс командой /pay")
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💳 ПОПОЛНИТЬ", callback_data="pay")]
+        ])
+        await message.answer(
+            "❌ У вас недостаточно средств. Пополните баланс, чтобы создавать песни.",
+            reply_markup=keyboard
+        )
         return
     if not await can_generate():
         await message.answer("❌ Месячный лимит генераций для бота исчерпан. Попробуйте позже.")
