@@ -4,7 +4,7 @@ from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message
 from aiogram import Bot
 from config import PROVIDER_TOKEN
-from database.crud import add_balance, get_or_create_user
+from database.crud import add_balance, get_or_create_user, get_user_balance
 from database.session import async_session_maker
 
 logger = logging.getLogger(__name__)
@@ -94,16 +94,17 @@ async def process_successful_payment(message: Message):
     async with async_session_maker() as session:
         user = await get_or_create_user(session, message.from_user.id)
         await add_balance(session, message.from_user.id, generations)
-        new_balance = await get_user_balance(session, message.from_user.id)  # нужно импортировать get_user_balance, или можно просто вернуть сообщение
-
-    # Импортируем get_user_balance, чтобы показать новый баланс (либо оставим без показа)
-    from database.crud import get_user_balance
-    async with async_session_maker() as session:
         new_balance = await get_user_balance(session, message.from_user.id)
+
+    # Кнопка для перехода к генерации
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎵 Сгенерировать песню", callback_data="generate")]
+    ])
 
     await message.answer(
         f"✅ Оплата на сумму {total_amount} ₽ успешно прошла!\n"
         f"Вам начислено {generations} генераций.\n"
-        f"💰 Ваш баланс: {new_balance} генераций.\n"
-        f"Спасибо за покупку!"
+        f"💰 Ваш баланс: {new_balance} генераций.\n\n"
+        f"Теперь вы можете создать песню!",
+        reply_markup=keyboard
     )
