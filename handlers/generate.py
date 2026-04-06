@@ -1,3 +1,4 @@
+import logging
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -10,7 +11,6 @@ from services.deepseek import get_lyrics
 from services.suno import SunoClient
 from services.global_counter import can_generate, use_generation
 from config import SUNO_API_URL
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,10 @@ def vocal_keyboard():
 
 @router.message(Command("generate"))
 async def start_generation(message: types.Message, state: FSMContext):
+    logger.info(f"generate command from {message.from_user.id}")
     async with async_session_maker() as session:
         balance = await get_user_balance(session, message.from_user.id)
+    logger.info(f"balance: {balance}")
     if balance <= 0:
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="💳 ПОПОЛНИТЬ", callback_data="pay")]
@@ -92,17 +94,17 @@ async def vocal_callback(callback: types.CallbackQuery, state: FSMContext):
     else:
         await state.update_data(vocal=vocal)
         await callback.message.answer(f"🎤 Выбрано: {vocal}")
-        # Генерация текста
         await callback.message.answer("🤖 Генерирую текст песни... Подождите немного.")
-        messages = []
         data = await state.get_data()
         theme = data.get("theme", "")
         style = data.get("style", "поп")
         vocal = data.get("vocal", "мужской")
-        messages.append({"role": "user", "content": f"Тема: {theme}"})
-        messages.append({"role": "user", "content": f"Жанр: {style}"})
-        messages.append({"role": "user", "content": f"Вокал: {vocal}"})
-        messages.append({"role": "user", "content": "Напиши текст песни на русском языке, 2-3 куплета и припев."})
+        messages = [
+            {"role": "user", "content": f"Тема: {theme}"},
+            {"role": "user", "content": f"Жанр: {style}"},
+            {"role": "user", "content": f"Вокал: {vocal}"},
+            {"role": "user", "content": "Напиши текст песни на русском языке, 2-3 куплета и припев."}
+        ]
         try:
             lyrics = await get_lyrics(messages)
             await state.update_data(lyrics=lyrics)
@@ -121,15 +123,16 @@ async def vocal_callback(callback: types.CallbackQuery, state: FSMContext):
 async def vocal_manual(message: types.Message, state: FSMContext):
     await state.update_data(vocal=message.text)
     await message.answer("🤖 Генерирую текст песни... Подождите немного.")
-    messages = []
     data = await state.get_data()
     theme = data.get("theme", "")
     style = data.get("style", "поп")
     vocal = data.get("vocal", "мужской")
-    messages.append({"role": "user", "content": f"Тема: {theme}"})
-    messages.append({"role": "user", "content": f"Жанр: {style}"})
-    messages.append({"role": "user", "content": f"Вокал: {vocal}"})
-    messages.append({"role": "user", "content": "Напиши текст песни на русском языке, 2-3 куплета и припев."})
+    messages = [
+        {"role": "user", "content": f"Тема: {theme}"},
+        {"role": "user", "content": f"Жанр: {style}"},
+        {"role": "user", "content": f"Вокал: {vocal}"},
+        {"role": "user", "content": "Напиши текст песни на русском языке, 2-3 куплета и припев."}
+    ]
     try:
         lyrics = await get_lyrics(messages)
         await state.update_data(lyrics=lyrics)
