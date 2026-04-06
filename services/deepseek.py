@@ -21,7 +21,7 @@ async def get_lyrics(messages_history: list) -> str:
         "Authorization": f"Bearer {OPENROUTER_API_KEY}"
     }
     payload = {
-        "model": "mistralai/mistral-7b-instruct:free",  # бесплатная, мощная
+        "model": "google/gemma-2-9b-it:free",  # бесплатная, мощная
         "messages": [{"role": "user", "content": last_user_msg}],
         "temperature": 0.7,
         "max_tokens": 1000
