@@ -19,7 +19,7 @@ async def get_lyrics(messages_history: list) -> str:
         "Authorization": f"Bearer {OPENROUTER_API_KEY}"
     }
     payload = {
-        "model": "nvidia/nemotron-3-super:free",
+        "model": "gpt-oss-120b:free",
         "messages": [{"role": "user", "content": last_user_msg}],
         "temperature": 0.7,
         "max_tokens": 1000
