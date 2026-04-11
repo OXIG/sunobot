@@ -109,8 +109,8 @@ async def vocal_callback(callback: types.CallbackQuery, state: FSMContext):
             lyrics = await get_lyrics(messages)
             await state.update_data(lyrics=lyrics)
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🚀 Сгенерировать песню", callback_data="confirm_generate")]
-            ])
+    [InlineKeyboardButton(text="📝 Написать текст песни", callback_data="confirm_generate")]
+         ])
             await callback.message.answer(f"📝 Вот текст песни:\n\n{lyrics}\n\nНажмите кнопку, чтобы начать генерацию музыки.", reply_markup=keyboard)
             await state.set_state(SongCreation.waiting_for_approval)
         except Exception as e:
