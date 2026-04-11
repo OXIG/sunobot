@@ -4,7 +4,19 @@ from config import DEEPSEEK_API_KEY
 
 logger = logging.getLogger(__name__)
 
+# Системный промпт, который задаёт роль DeepSeek как голосового помощника для написания песен
+SYSTEM_PROMPT = (
+    "Ты — голосовой помощник для написания песен. "
+    "Помоги пользователю написать текст песни на русском языке. "
+    "Твоя задача — предложить тему, жанр, структуру (куплеты, припев) и помочь с рифмами. "
+    "Будь креативным и дружелюбным. Отвечай на русском языке."
+)
+
 async def get_lyrics(messages_history: list) -> str:
+    # Добавляем системный промпт в начало истории, если его ещё нет
+    if not messages_history or messages_history[0].get("role") != "system":
+        messages_history.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
+    
     # Извлекаем последнее сообщение пользователя
     last_user_msg = None
     for msg in reversed(messages_history):
@@ -21,7 +33,7 @@ async def get_lyrics(messages_history: list) -> str:
     }
     payload = {
         "model": "deepseek-chat",
-        "messages": [{"role": "user", "content": last_user_msg}],
+        "messages": messages_history,
         "temperature": 0.7,
         "max_tokens": 1000
     }
