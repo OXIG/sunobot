@@ -98,3 +98,15 @@ async def increment_global_counter(session: AsyncSession) -> bool:
     counter.count += 1
     await session.commit()
     return True
+# Статистика для админов
+async def get_total_users(session: AsyncSession) -> int:
+    result = await session.execute(select(User))
+    return len(result.scalars().all())
+
+async def get_total_generations(session: AsyncSession) -> int:
+    result = await session.execute(select(Generation))
+    return len(result.scalars().all())
+
+async def get_total_payments(session: AsyncSession) -> int:
+    result = await session.execute(select(Payment).where(Payment.status == "succeeded"))
+    return len(result.scalars().all())
