@@ -6,8 +6,28 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - SUNO_COOKIE=<сюда вставить содержимое Cookie в Suno.txt>
-      - TWOCAPTCHA_KEY=<ваш ключ 2captcha>
+      - SUNO_COOKIE=${SUNO_COOKIE}
+      - TWOCAPTCHA_KEY=${TWOCAPTCHA_KEY}
       - BROWSER=chromium
       - BROWSER_HEADLESS=true
-      - BROWSER_LOCALE=ru   # или en
+      - BROWSER_LOCALE=ru
+
+  bot:
+    build: .
+    container_name: suno-bot
+    restart: unless-stopped
+    depends_on:
+      - suno-api
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - SUNO_API_URL=http://suno-api:3000
+      - PROVIDER_TOKEN=${PROVIDER_TOKEN}
+      - MYNALOG_JWT_TOKEN=${MYNALOG_JWT_TOKEN}
+      - MYNALOG_INN=${MYNALOG_INN}
+      - MYNALOG_PHONE=${MYNALOG_PHONE}
+      - DATABASE_URL=sqlite+aiosqlite:///./bot.db
+      - GLOBAL_LIMIT=${GLOBAL_LIMIT}
+      - ADMIN_IDS=${ADMIN_IDS}
+    volumes:
+      - ./bot.db:/app/bot.db
