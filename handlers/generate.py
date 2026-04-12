@@ -26,6 +26,36 @@ class SongCreation(StatesGroup):
 # Хранилище для последнего сгенерированного текста (для регенерации)
 last_lyrics_cache = {}
 
+# Системный промпт для DeepSeek (строгий, под Suno)
+SYSTEM_PROMPT = """Ты — ассистент для написания текстов песен для нейросети Suno.
+
+ПРАВИЛА:
+1. Отвечай ТОЛЬКО по делу. Без воды, без лишних объяснений, без "конечно, вот что я могу предложить".
+2. Твои ответы должны быть краткими (максимум 2-3 предложения, если не просят иное).
+3. Если пользователь просит текст песни — сразу пиши текст в формате:
+   [КУПЛЕТ 1]
+   [ПРИПЕВ]
+   [КУПЛЕТ 2]
+   [ПРИПЕВ]
+   [БРИДЖ]
+   [КУПЛЕТ 3]
+   [ПРИПЕВ]
+4. По умолчанию текст = 3 куплета + бридж + припев (повторяется).
+5. Если пользователь просит изменить текст — меняй ТОЛЬКО то, что просят, остальное оставляй.
+6. Не задавай лишних вопросов. Если темы недостаточно — запроси ТОЛЬКО недостающее одним коротким вопросом.
+7. В конце каждого готового текста ОБЯЗАТЕЛЬНО добавь строку: [ТЕКСТ_ГОТОВ]
+8. Если пользователь просит указать стиль музыки — подбирай 1-2 слова (pop, rock, hip-hop, electronic, lo-fi, orchestral, ambient и т.д.)
+
+Пример хорошего ответа:
+"Тема: любовь и расставание. Жанр: pop.
+[КУПЛЕТ 1]
+Текст...
+[ПРИПЕВ]
+Текст...
+[ТЕКСТ_ГОТОВ]"
+
+Запомни: ты помощник для Suno, а не поэт-философ. Быстро, чётко, по делу."""
+
 def get_generate_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎵 Сгенерировать песню", callback_data="confirm_generate")]
@@ -57,26 +87,29 @@ async def start_generation(message: types.Message, state: FSMContext):
         return
     
     await message.answer(
-        "✍️ **О чём будет ваша песня?**\n\n"
-        "Напишите тему, идею, настроение — я помогу создать текст.\n"
-        "Вы также можете сразу написать свой текст, и я подберу к нему музыку.",
+        "✍️ **О чем будет ваша песня?**\n\n"
+        "Напишите тему, настроение, жанр.\n"
+        "Примеры:\n"
+        "- «Грустная песня про любовь, поп»\n"
+        "- «Энергичный трек про успех, рэп»\n"
+        "- «Осенний дождь и одиночество, инди»\n\n"
+        "Или сразу отправьте свой текст — я передам его в Suno.",
         parse_mode="Markdown"
     )
     await state.set_state(SongCreation.waiting_for_theme)
 
 @router.message(SongCreation.waiting_for_theme)
 async def theme_received(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
     user_input = message.text
-    
     await state.update_data(original_theme=user_input)
     
+    # Формируем историю с системным промптом
     messages = [
-        {"role": "system", "content": "Ты — голосовой помощник для написания песен. Твоя задача — помочь пользователю написать текст песни. Общайся дружелюбно, предлагай варианты, уточняй жанр и настроение. Когда текст будет готов, напиши его в сообщении и добавь в конце строку: [ТЕКСТ_ГОТОВ]. Не пиши эту строку, пока текст не согласован полностью."},
-        {"role": "user", "content": f"Вот идея для песни: {user_input}. Помоги написать текст. Спрашивай уточняющие вопросы, предлагай варианты."}
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": f"Напиши текст песни на тему: {user_input}. По умолчанию: 3 куплета, бридж, припев. Жанр подбери сам."}
     ]
     
-    await message.answer("🎤 **Работаю над текстом...**\n\nЯ задам несколько вопросов, чтобы текст получился именно таким, как вы хотите.")
+    await message.answer("🎤 **Генерирую текст...**")
     
     response = await get_lyrics(messages)
     await state.update_data(deepseek_messages=messages + [{"role": "assistant", "content": response}])
@@ -85,7 +118,7 @@ async def theme_received(message: types.Message, state: FSMContext):
         clean_text = response.replace("[ТЕКСТ_ГОТОВ]", "").strip()
         await state.update_data(generated_lyrics=clean_text)
         await message.answer(
-            f"📝 **Вот что получилось:**\n\n{clean_text}\n\nЕсли хотите изменить текст, просто напишите свои пожелания. Если всё устраивает — нажмите кнопку.",
+            f"📝 **Текст готов:**\n\n{clean_text}\n\nЕсли хотите изменить — напишите, что именно. Если всё устраивает — нажмите кнопку.",
             reply_markup=get_generate_keyboard()
         )
         await state.set_state(SongCreation.chatting_with_deepseek)
@@ -133,19 +166,7 @@ async def generate_and_send_audio(callback: types.CallbackQuery, state: FSMConte
         await callback.message.answer("❌ Месячный лимит генераций исчерпан.")
         return False
     
-    # Анимированное уведомление
-    msg = await callback.message.answer("🐱 **Печатающий кот трудится...**\n\n_Генерация началась_", parse_mode="Markdown")
-    
-    frames = [
-        "🐱‍💻 **Генерация началась...**",
-        "🐱‍👤 **Создаю мелодию...**",
-        "🐱‍🎤 **Добавляю вокал...**",
-        "🐱‍🏍 **Почти готово!**",
-        "🐱‍🚀 **Завершаю...**"
-    ]
-    for frame in frames:
-        await asyncio.sleep(2)
-        await msg.edit_text(f"{frame}\n\n_Пожалуйста, подождите..._", parse_mode="Markdown")
+    msg = await callback.message.answer("🎵 **Генерирую музыку через Suno...**\n\n_Это может занять до 5 минут_", parse_mode="Markdown")
     
     # Генерация через Suno
     style = data.get("style", "pop")
@@ -165,7 +186,7 @@ async def generate_and_send_audio(callback: types.CallbackQuery, state: FSMConte
             await save_generation(session, user.id, lyrics, style, vocal, audio1, audio2)
             await use_generation()
             new_balance = await get_user_balance(session, user_id)
-            last_lyrics_cache[user_id] = lyrics  # сохраняем для регенерации
+            last_lyrics_cache[user_id] = lyrics
         else:
             await callback.message.answer("❌ Не удалось списать средства.")
             return False
@@ -197,7 +218,6 @@ async def regenerate_song(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer()
         return
     
-    # Восстанавливаем текст в состояние
     await state.update_data(generated_lyrics=lyrics, style="pop", vocal="male")
     
     success = await generate_and_send_audio(callback, state, user_id)
@@ -209,8 +229,8 @@ async def regenerate_song(callback: types.CallbackQuery, state: FSMContext):
 async def manual_lyrics_input(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer(
         "✍️ **Введите текст песни вручную.**\n\n"
-        "Напишите текст целиком, а я передам его в Suno для создания музыки.\n"
-        "Не забудьте указать жанр и тип вокала в тексте (например, «поп, женский вокал»)."
+        "Напишите текст целиком. Suno сам подберёт музыку.\n"
+        "Формат не важен, но чем структурированнее текст — тем лучше результат."
     )
     await state.set_state(SongCreation.waiting_for_manual_lyrics)
     await callback.answer()
@@ -230,7 +250,7 @@ async def manual_lyrics_received(message: types.Message, state: FSMContext):
         [InlineKeyboardButton(text="🎵 Сгенерировать песню", callback_data="confirm_generate")]
     ])
     await message.answer(
-        f"📝 **Текст сохранён:**\n\n{lyrics}\n\nТеперь можно сгенерировать музыку.",
+        f"📝 **Текст сохранён:**\n\n{lyrics[:500]}{'...' if len(lyrics) > 500 else ''}\n\nТеперь можно сгенерировать музыку.",
         reply_markup=keyboard
     )
     await state.set_state(SongCreation.chatting_with_deepseek)
