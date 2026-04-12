@@ -35,9 +35,23 @@ async def cmd_start(message: types.Message):
 async def inline_generate(callback: CallbackQuery):
     await callback.answer()
     from .generate import start_generation
-    # Создаём копию сообщения с заменой from_user на реального пользователя
-    fake_message = callback.message.model_copy(update={'from_user': callback.from_user})
-    await start_generation(fake_message, None)
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.storage.memory import MemoryStorage
+    
+    # Создаём состояние для FSM
+    storage = MemoryStorage()
+    state = FSMContext(storage=storage, chat_id=callback.from_user.id, user_id=callback.from_user.id)
+    
+    # Создаём фейковое сообщение
+    fake_message = types.Message(
+        message_id=callback.message.message_id,
+        date=callback.message.date,
+        chat=callback.message.chat,
+        from_user=callback.from_user,
+        text="/generate"
+    )
+    
+    await start_generation(fake_message, state)
 
 @router.callback_query(lambda c: c.data == "balance")
 async def inline_balance(callback: CallbackQuery):
