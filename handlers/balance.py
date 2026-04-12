@@ -8,16 +8,29 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
-# Простой тестовый обработчик
+# Временный тестовый обработчик
 @router.message()
 async def echo_all(message: types.Message):
     logger.info(f"Получено любое сообщение: {message.text}")
     await message.answer(f"Эхо: {message.text}")
 
+# Обработчик команды /balance (без эмодзи)
 @router.message(Command("balance"))
 async def cmd_balance(message: types.Message):
     user_id = message.from_user.id
     logger.info(f"=== КОМАНДА BALANCE от {user_id} ===")
+    
+    async with async_session_maker() as session:
+        balance = await get_user_balance(session, user_id)
+        logger.info(f"Баланс из БД: {balance}")
+    
+    await message.answer(f"💰 Ваш баланс: {balance} генераций")
+
+# Обработчик для кнопки с эмодзи
+@router.message(lambda msg: msg.text == "/balance 💰" or msg.text == "Мой баланс")
+async def text_balance(message: types.Message):
+    user_id = message.from_user.id
+    logger.info(f"=== КОМАНДА BALANCE (кнопка) от {user_id} ===")
     
     async with async_session_maker() as session:
         balance = await get_user_balance(session, user_id)
