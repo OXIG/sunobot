@@ -1,4 +1,4 @@
-from aiogram import Router, types
+from aiogram import Router, types, Dispatcher
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -37,11 +37,15 @@ async def cmd_start(message: types.Message):
 async def inline_generate(callback: CallbackQuery):
     await callback.answer()
     from .generate import start_generation
-    from aiogram.fsm.context import FSMContext
+    from aiogram import Bot
     from aiogram.fsm.storage.memory import MemoryStorage
+    from aiogram.fsm.context import FSMContext
+    from aiogram.dispatcher.dispatcher import Dispatcher
     
-    # Создаём состояние для FSM
-    storage = MemoryStorage()
+    # Получаем текущий диспетчер
+    dp = Dispatcher.get_current()
+    # Создаём состояние
+    storage = dp.fsm_storage
     state = FSMContext(storage=storage, chat_id=callback.from_user.id, user_id=callback.from_user.id)
     
     # Создаём фейковое сообщение
@@ -59,7 +63,7 @@ async def inline_generate(callback: CallbackQuery):
 async def inline_balance(callback: CallbackQuery):
     await callback.answer()
     from .balance import cmd_balance
-    # Создаём фейковое сообщение для вызова cmd_balance
+    # Создаём фейковое сообщение
     fake_message = types.Message(
         message_id=callback.message.message_id,
         date=callback.message.date,
