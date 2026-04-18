@@ -1,8 +1,6 @@
-from aiogram import Router, types, Dispatcher
+from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.storage.memory import MemoryStorage
 
 router = Router()
 
@@ -16,9 +14,9 @@ def get_reply_keyboard():
 
 def get_inline_keyboard():
     buttons = [
-        [InlineKeyboardButton(text="🎵 Сгенерировать", callback_data="generate")],
-        [InlineKeyboardButton(text="💰 Баланс", callback_data="balance")],
-        [InlineKeyboardButton(text="💳 Пополнить", callback_data="pay")],
+        [InlineKeyboardButton(text="🎵 Сгенерировать", callback_data="inline_generate")],
+        [InlineKeyboardButton(text="💰 Баланс", callback_data="inline_balance")],
+        [InlineKeyboardButton(text="💳 Пополнить", callback_data="inline_pay")],
         [InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -31,60 +29,22 @@ async def cmd_start(message: types.Message):
         "Используйте кнопки ниже или под сообщением для навигации.",
         reply_markup=get_reply_keyboard()
     )
-    await message.answer("Меню", reply_markup=get_inline_keyboard())
+    await message.answer("Меню:", reply_markup=get_inline_keyboard())
 
-@router.callback_query(lambda c: c.data == "generate")
+@router.callback_query(lambda c: c.data == "inline_generate")
 async def inline_generate(callback: CallbackQuery):
     await callback.answer()
-    from .generate import start_generation
-    from aiogram import Bot
-    from aiogram.fsm.storage.memory import MemoryStorage
-    from aiogram.fsm.context import FSMContext
-    from aiogram.dispatcher.dispatcher import Dispatcher
-    
-    # Получаем текущий диспетчер
-    dp = Dispatcher.get_current()
-    # Создаём состояние
-    storage = dp.fsm_storage
-    state = FSMContext(storage=storage, chat_id=callback.from_user.id, user_id=callback.from_user.id)
-    
-    # Создаём фейковое сообщение
-    fake_message = types.Message(
-        message_id=callback.message.message_id,
-        date=callback.message.date,
-        chat=callback.message.chat,
-        from_user=callback.from_user,
-        text="/generate"
-    )
-    
-    await start_generation(fake_message, state)
+    await callback.message.answer("Введите /generate для создания песни")
 
-@router.callback_query(lambda c: c.data == "balance")
+@router.callback_query(lambda c: c.data == "inline_balance")
 async def inline_balance(callback: CallbackQuery):
     await callback.answer()
-    from .balance import cmd_balance
-    # Создаём фейковое сообщение
-    fake_message = types.Message(
-        message_id=callback.message.message_id,
-        date=callback.message.date,
-        chat=callback.message.chat,
-        from_user=callback.from_user,
-        text="/balance"
-    )
-    await cmd_balance(fake_message)
+    await callback.message.answer("Введите /balance для проверки баланса")
 
-@router.callback_query(lambda c: c.data == "pay")
+@router.callback_query(lambda c: c.data == "inline_pay")
 async def inline_pay(callback: CallbackQuery):
     await callback.answer()
-    from .payment import cmd_pay
-    fake_message = types.Message(
-        message_id=callback.message.message_id,
-        date=callback.message.date,
-        chat=callback.message.chat,
-        from_user=callback.from_user,
-        text="/pay"
-    )
-    await cmd_pay(fake_message)
+    await callback.message.answer("Введите /pay для пополнения баланса")
 
 @router.callback_query(lambda c: c.data == "help")
 async def inline_help(callback: CallbackQuery):
