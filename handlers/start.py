@@ -1,6 +1,8 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import MemoryStorage
 
 router = Router()
 
@@ -56,14 +58,29 @@ async def inline_generate(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data == "balance")
 async def inline_balance(callback: CallbackQuery):
     await callback.answer()
-    from .balance import show_balance
-    await show_balance(callback.message)
+    from .balance import cmd_balance
+    # Создаём фейковое сообщение для вызова cmd_balance
+    fake_message = types.Message(
+        message_id=callback.message.message_id,
+        date=callback.message.date,
+        chat=callback.message.chat,
+        from_user=callback.from_user,
+        text="/balance"
+    )
+    await cmd_balance(fake_message)
 
 @router.callback_query(lambda c: c.data == "pay")
 async def inline_pay(callback: CallbackQuery):
     await callback.answer()
     from .payment import cmd_pay
-    await cmd_pay(callback.message)
+    fake_message = types.Message(
+        message_id=callback.message.message_id,
+        date=callback.message.date,
+        chat=callback.message.chat,
+        from_user=callback.from_user,
+        text="/pay"
+    )
+    await cmd_pay(fake_message)
 
 @router.callback_query(lambda c: c.data == "help")
 async def inline_help(callback: CallbackQuery):
