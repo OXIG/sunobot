@@ -1,9 +1,6 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-import logging
-
-logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -17,16 +14,15 @@ def get_reply_keyboard():
 
 def get_inline_keyboard():
     buttons = [
-        [InlineKeyboardButton(text="🎵 Сгенерировать", callback_data="inline_generate")],
-        [InlineKeyboardButton(text="💰 Баланс", callback_data="inline_balance")],
-        [InlineKeyboardButton(text="💳 Пополнить", callback_data="inline_pay")],
+        [InlineKeyboardButton(text="🎵 Сгенерировать", callback_data="generate")],
+        [InlineKeyboardButton(text="💰 Баланс", callback_data="balance")],
+        [InlineKeyboardButton(text="💳 Пополнить", callback_data="pay")],
         [InlineKeyboardButton(text="❓ Помощь", callback_data="help")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
-    logger.info(f"Команда /start от {message.from_user.id}")
     await message.answer(
         "🎵 Добро пожаловать в Suno Bot!\n\n"
         "Я помогу создать песню с помощью нейросети. Для генерации нужно пополнить баланс.\n\n"
@@ -35,27 +31,47 @@ async def cmd_start(message: types.Message):
     )
     await message.answer("Меню:", reply_markup=get_inline_keyboard())
 
-@router.callback_query(lambda c: c.data == "inline_generate")
+@router.callback_query(lambda c: c.data == "generate")
 async def inline_generate(callback: CallbackQuery):
-    logger.info(f"Нажата инлайн-кнопка inline_generate от {callback.from_user.id}")
     await callback.answer()
-    await callback.message.answer("Введите /generate для создания песни")
+    from .generate import start_generation
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.storage.memory import MemoryStorage
+    from aiogram import Bot, Dispatcher
+    from config import BOT_TOKEN
+    
+    bot = Bot(token=BOT_TOKEN)
+    storage = MemoryStorage()
+    state = FSMContext(storage=storage, chat_id=callback.from_user.id, user_id=callback.from_user.id)
+    
+    # Создаём новое сообщение
+    new_message = await callback.message.answer("/generate")
+    await start_generation(new_message, state)
 
-@router.callback_query(lambda c: c.data == "inline_balance")
+@router.callback_query(lambda c: c.data == "balance")
 async def inline_balance(callback: CallbackQuery):
-    logger.info(f"Нажата инлайн-кнопка inline_balance от {callback.from_user.id}")
     await callback.answer()
-    await callback.message.answer("Введите /balance для проверки баланса")
+    from .balance import cmd_balance
+    from config import BOT_TOKEN
+    from aiogram import Bot
+    
+    bot = Bot(token=BOT_TOKEN)
+    new_message = await callback.message.answer("/balance")
+    await cmd_balance(new_message)
 
-@router.callback_query(lambda c: c.data == "inline_pay")
+@router.callback_query(lambda c: c.data == "pay")
 async def inline_pay(callback: CallbackQuery):
-    logger.info(f"Нажата инлайн-кнопка inline_pay от {callback.from_user.id}")
     await callback.answer()
-    await callback.message.answer("Введите /pay для пополнения баланса")
+    from .payment import cmd_pay
+    from config import BOT_TOKEN
+    from aiogram import Bot
+    
+    bot = Bot(token=BOT_TOKEN)
+    new_message = await callback.message.answer("/pay")
+    await cmd_pay(new_message)
 
 @router.callback_query(lambda c: c.data == "help")
 async def inline_help(callback: CallbackQuery):
-    logger.info(f"Нажата инлайн-кнопка help от {callback.from_user.id}")
     await callback.answer()
     await callback.message.answer(
         "Доступные команды:\n"
