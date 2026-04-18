@@ -1,6 +1,9 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -23,6 +26,7 @@ def get_inline_keyboard():
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
+    logger.info(f"Команда /start от {message.from_user.id}")
     await message.answer(
         "🎵 Добро пожаловать в Suno Bot!\n\n"
         "Я помогу создать песню с помощью нейросети. Для генерации нужно пополнить баланс.\n\n"
@@ -33,21 +37,25 @@ async def cmd_start(message: types.Message):
 
 @router.callback_query(lambda c: c.data == "inline_generate")
 async def inline_generate(callback: CallbackQuery):
+    logger.info(f"Нажата инлайн-кнопка inline_generate от {callback.from_user.id}")
     await callback.answer()
     await callback.message.answer("Введите /generate для создания песни")
 
 @router.callback_query(lambda c: c.data == "inline_balance")
 async def inline_balance(callback: CallbackQuery):
+    logger.info(f"Нажата инлайн-кнопка inline_balance от {callback.from_user.id}")
     await callback.answer()
     await callback.message.answer("Введите /balance для проверки баланса")
 
 @router.callback_query(lambda c: c.data == "inline_pay")
 async def inline_pay(callback: CallbackQuery):
+    logger.info(f"Нажата инлайн-кнопка inline_pay от {callback.from_user.id}")
     await callback.answer()
     await callback.message.answer("Введите /pay для пополнения баланса")
 
 @router.callback_query(lambda c: c.data == "help")
 async def inline_help(callback: CallbackQuery):
+    logger.info(f"Нажата инлайн-кнопка help от {callback.from_user.id}")
     await callback.answer()
     await callback.message.answer(
         "Доступные команды:\n"
