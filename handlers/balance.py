@@ -15,9 +15,7 @@ async def cmd_balance(message: types.Message):
         balance = await get_user_balance(session, user_id)
     await message.answer(f"💰 Ваш баланс: {balance} генераций")
 
-@router.message(lambda msg: msg.text == "/balance 💰" or msg.text == "Мой баланс")
+# Обработчик для кнопки "Мой баланс" (reply-клавиатура)
+@router.message(lambda msg: msg.text == "Мой баланс")
 async def text_balance(message: types.Message):
-    user_id = message.from_user.id
-    async with async_session_maker() as session:
-        balance = await get_user_balance(session, user_id)
-    await message.answer(f"💰 Ваш баланс: {balance} генераций")
+    await cmd_balance(message)
